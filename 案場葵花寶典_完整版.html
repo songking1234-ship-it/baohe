@@ -1,0 +1,1090 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>客戶意向系統 · Demo（資料已匿名）</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<script>
+if(window.Chart){Chart.defaults.color='#96a0b0';Chart.defaults.borderColor='rgba(216,181,106,.12)';Chart.defaults.font.family="'Noto Sans TC',sans-serif";}
+</script>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700;900&family=JetBrains+Mono:wght@400;700&display=swap');
+
+  @import url('https://fonts.googleapis.com/css2?family=Noto+Serif+TC:wght@500;700;900&family=Noto+Sans+TC:wght@400;500;700;900&family=JetBrains+Mono:wght@400;500;700&display=swap');
+
+  :root{
+    --ink:#161f1c; --ink-2:#1f2b27; --ink-soft:#2a3934;
+    --green:#3c5a50; --green-d:#161f1c; --green-l:#4c6f63;
+    --brass:#af8a52; --brass-l:#cfae7c; --brass-d:#8c6c3c;
+    --cream:#f6f2ea; --paper:#fffdf9; --ink-text:#202b27; --muted:#7c847e;
+    --hot:#9c433a; --hot-bg:#f3e6e1; --hot-ink:#7f382f;
+    --warm:#a67a35; --warm-bg:#f2e7d1; --warm-ink:#8a6326;
+    --cold:#48657c; --cold-bg:#e3ebee; --cold-ink:#3b5266;
+    --line:#e7e1d2; --hairline:rgba(175,138,82,.4);
+    --sp-1:4px; --sp-2:8px; --sp-3:12px; --sp-4:16px; --sp-5:20px; --sp-6:28px; --sp-7:40px;
+    --r-sm:6px; --r-md:10px; --r-lg:14px; --r-full:999px;
+    --shadow-sm:0 2px 10px rgba(22,31,28,.05);
+    --shadow-md:0 16px 40px rgba(22,31,28,.14);
+    --ease:cubic-bezier(.4,0,.2,1);
+  }
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{font-family:'Noto Sans TC',sans-serif;background:var(--cream);color:var(--ink-text);-webkit-font-smoothing:antialiased;line-height:1.5}
+  .mono{font-family:'JetBrains Mono',monospace}
+  .serif{font-family:'Noto Serif TC',serif}
+  button{-webkit-tap-highlight-color:transparent}
+  button:focus-visible, .lead:focus-visible, .chip:focus-visible{outline:2px solid var(--brass);outline-offset:2px}
+  @media (prefers-reduced-motion: reduce){*{animation-duration:.001ms !important;transition-duration:.001ms !important}}
+
+  /* top bar */
+  .topbar{background:var(--ink);color:#fff;padding:var(--sp-4) var(--sp-5);display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:50;box-shadow:0 1px 0 var(--hairline)}
+  .brand{display:flex;align-items:center;gap:11px;font-family:'Noto Serif TC',serif;font-weight:700;font-size:18px;letter-spacing:.5px}
+  .brand .dot{width:6px;height:6px;border-radius:50%;background:var(--brass-l);flex-shrink:0;box-shadow:0 0 8px rgba(207,174,124,.7)}
+  .toggle{display:flex;background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.1);border-radius:var(--r-full);padding:3px}
+  .toggle button{border:0;background:transparent;color:rgba(255,255,255,.55);font-family:inherit;font-weight:700;font-size:13px;padding:7px 16px;border-radius:var(--r-full);cursor:pointer;transition:.2s var(--ease);white-space:nowrap}
+  .toggle button.on{background:var(--brass-l);color:var(--ink)}
+
+  .wrap{max-width:1080px;margin:0 auto;padding:var(--sp-6) var(--sp-5) 72px}
+  .view{display:none}.view.show{display:block;animation:fade .35s var(--ease)}
+  @keyframes fade{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+
+  /* ===== 主管看板 ===== */
+  .dash-head{display:flex;justify-content:space-between;align-items:flex-end;flex-wrap:wrap;gap:var(--sp-4);margin-bottom:var(--sp-6);padding-bottom:var(--sp-5);border-bottom:1px solid var(--hairline)}
+  .dash-head h1{font-family:'Noto Serif TC',serif;font-size:clamp(21px,2.4vw,27px);font-weight:700;letter-spacing:.3px}
+  .dash-head .sub{color:var(--muted);font-size:13px;margin-top:7px}
+  .dash-head .when{font-size:12px;color:var(--muted);text-align:right;line-height:1.7;flex-shrink:0}
+  .dash-head .when b{color:var(--ink-text);font-weight:700}
+
+  .kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:var(--sp-3);margin-bottom:var(--sp-6)}
+  .kpi{background:var(--paper);border:1px solid var(--line);border-top:2px solid var(--line);border-radius:var(--r-md);padding:var(--sp-4) var(--sp-4);transition:box-shadow .2s var(--ease),border-color .2s var(--ease)}
+  .kpi:hover{box-shadow:var(--shadow-sm)}
+  .kpi .n{font-size:28px;font-weight:500;font-family:'JetBrains Mono';line-height:1;letter-spacing:-.5px}
+  .kpi .l{font-size:11.5px;color:var(--muted);margin-top:9px;letter-spacing:.2px}
+  .kpi.accent{border-top-color:var(--brass)}
+  .kpi.accent .n{color:var(--brass-d)}
+
+  .section-label{display:flex;align-items:baseline;gap:10px;font-size:13px;font-weight:700;letter-spacing:1.5px;margin:var(--sp-7) 0 var(--sp-4);color:var(--ink-text);text-transform:uppercase}
+  .section-label:first-of-type{margin-top:0}
+  .section-label::before{content:"";width:22px;height:1px;background:var(--brass)}
+  .section-label .count{font-family:'JetBrains Mono';color:var(--muted);font-weight:500;letter-spacing:0;text-transform:none}
+
+  .toolbar{display:flex;flex-wrap:wrap;gap:var(--sp-3);align-items:center;margin-bottom:var(--sp-4)}
+  .qbox{flex:1 1 200px;border:1px solid var(--line);background:var(--paper);border-radius:var(--r-sm);padding:9px 13px;font-family:inherit;font-size:13.5px;color:var(--ink-text)}
+  .qbox:focus{outline:2px solid var(--brass);border-color:transparent}
+  .ftabs{display:flex;background:var(--paper);border:1px solid var(--line);border-radius:var(--r-full);padding:3px;flex-shrink:0}
+  .ftab{border:0;background:transparent;font-family:inherit;font-size:12.5px;font-weight:700;color:var(--muted);padding:6px 13px;border-radius:var(--r-full);cursor:pointer;transition:.15s var(--ease)}
+  .ftab.on{background:var(--ink);color:var(--brass-l)}
+  .qsel{border:1px solid var(--line);background:var(--paper);border-radius:var(--r-sm);padding:9px 12px;font-family:inherit;font-size:12.5px;color:var(--ink-text);flex-shrink:0;cursor:pointer}
+  .empty{text-align:center;color:var(--muted);font-size:13.5px;padding:var(--sp-7) 0}
+  .lead.flash{animation:flashnew 1.8s var(--ease)}
+  @keyframes flashnew{0%{box-shadow:0 0 0 3px var(--brass)}100%{box-shadow:none}}
+  .tag.new{background:var(--ink);color:var(--brass-l)}
+
+  /* alert */
+  .alert{background:var(--paper);border:1px solid var(--line);border-left:2px solid var(--hot);border-radius:var(--r-md);padding:var(--sp-4) var(--sp-4);margin-bottom:var(--sp-6);display:flex;gap:var(--sp-3);align-items:flex-start}
+  .alert .ico{font-size:16px;flex-shrink:0;opacity:.85}
+  .alert b{color:var(--hot-ink)}
+  .alert .txt{font-size:13.5px;line-height:1.65;color:var(--ink-text)}
+
+  /* lead cards */
+  /* lead cards */
+  .leads{display:flex;flex-direction:column;gap:var(--sp-3)}
+  .lead{background:var(--paper);border:1px solid var(--line);border-radius:var(--r-lg);padding:var(--sp-4) var(--sp-5);display:grid;grid-template-columns:60px 1fr auto;gap:var(--sp-4);align-items:center;cursor:pointer;transition:.18s var(--ease);border-left:2px solid var(--line)}
+  .lead:hover{box-shadow:var(--shadow-md);transform:translateY(-1px)}
+  .lead.hot{border-left-color:var(--hot)}
+  .lead.warm{border-left-color:var(--warm)}
+  .lead.cold{border-left-color:var(--cold)}
+  .score{text-align:center}
+  .score .v{font-family:'JetBrains Mono';font-weight:500;font-size:21px;line-height:1;width:52px;height:52px;border-radius:50%;display:flex;align-items:center;justify-content:center;margin:0 auto;border:1.5px solid var(--line);background:var(--paper)}
+  .score .b{font-size:9.5px;font-weight:700;letter-spacing:.6px;margin-top:7px;display:block;color:var(--muted);text-transform:uppercase}
+  .hot .score .v{border-color:var(--hot);color:var(--hot-ink)}  .hot .score .b{color:var(--hot-ink)}
+  .warm .score .v{border-color:var(--warm);color:var(--warm-ink)}  .warm .score .b{color:var(--warm-ink)}
+  .cold .score .v{border-color:var(--cold);color:var(--cold-ink)}  .cold .score .b{color:var(--cold-ink)}
+
+  .lead .who{display:flex;flex-direction:column;gap:6px;min-width:0}
+  .lead .name{font-weight:700;font-size:15.5px}
+  .lead .name span{font-weight:400;color:var(--muted);font-size:12.5px;margin-left:6px}
+  .lead .tags{display:flex;flex-wrap:wrap;gap:6px}
+  .tag{font-size:11px;background:transparent;border:1px solid var(--line);color:var(--muted);padding:3px 9px;border-radius:6px;white-space:nowrap;line-height:1.4}
+  .tag.block{border-color:var(--hot);color:var(--hot-ink)}
+  .lead .meta{text-align:right;font-size:12px;color:var(--muted);line-height:1.75;white-space:nowrap;align-self:center}
+  .lead .meta .agent{color:var(--ink-text);font-weight:700}
+  .lead .meta .stale{color:var(--hot-ink);font-weight:700}
+  .lead .meta .ok{color:var(--green-l);font-weight:700}
+
+  /* detail drawer */
+  .drawer-bg{position:fixed;inset:0;background:rgba(22,31,28,.5);display:none;z-index:100;backdrop-filter:blur(2px)}
+  .drawer-bg.show{display:block}
+  .drawer{position:fixed;top:0;right:0;height:100%;width:min(440px,92vw);background:var(--cream);z-index:101;transform:translateX(100%);transition:.3s var(--ease);overflow-y:auto;box-shadow:-10px 0 40px rgba(0,0,0,.25)}
+  .drawer.show{transform:none}
+  .drawer .dh{background:var(--ink);color:#fff;padding:var(--sp-5);position:sticky;top:0;box-shadow:0 4px 12px rgba(0,0,0,.15);border-bottom:1px solid var(--hairline)}
+  .drawer .dh .x{position:absolute;top:16px;right:18px;cursor:pointer;font-size:18px;color:var(--brass-l);background:rgba(255,255,255,.08);border:0;width:30px;height:30px;border-radius:var(--r-full);line-height:1}
+  .drawer .dh h2{font-family:'Noto Serif TC',serif;font-size:20px;font-weight:700;padding-right:34px}
+  .drawer .dh .dh-sub{color:rgba(255,255,255,.55);font-size:13px;margin-top:7px}
+  .drawer .body{padding:var(--sp-5)}
+  .drow{display:flex;justify-content:space-between;padding:var(--sp-3) 0;border-bottom:1px solid var(--line);font-size:14px;gap:14px}
+  .drow .k{color:var(--muted);flex-shrink:0}
+  .drow .vv{text-align:right;font-weight:500;color:var(--ink-text)}
+  .narr{background:var(--paper);border:1px solid var(--line);border-radius:var(--r-md);padding:var(--sp-4);font-size:13px;line-height:1.75;color:var(--ink-text);margin-top:var(--sp-4)}
+  .narr .nl{font-size:10.5px;color:var(--brass-d);font-weight:700;letter-spacing:1.2px;margin-bottom:8px;text-transform:uppercase}
+  .nextstep{background:var(--ink);color:#fff;border-radius:var(--r-md);padding:var(--sp-4);margin-top:var(--sp-4)}
+  .nextstep .nl{font-size:10.5px;color:var(--brass-l);font-weight:700;letter-spacing:1.2px;margin-bottom:8px;text-transform:uppercase}
+  .nextstep p{font-size:14px;line-height:1.6}
+
+  /* ===== 跑單填寫端 ===== */
+  .phone{max-width:390px;margin:0 auto;background:var(--paper);border-radius:26px;border:1px solid var(--line);overflow:hidden;box-shadow:var(--shadow-md)}
+  .ph-head{background:var(--ink);color:#fff;padding:var(--sp-5) var(--sp-5);border-bottom:1px solid var(--hairline)}
+  .ph-head .t{font-family:'Noto Serif TC',serif;font-weight:700;font-size:17px}
+  .ph-head .s{font-size:12px;color:rgba(255,255,255,.55);margin-top:5px}
+  .ph-body{padding:var(--sp-5) var(--sp-5) var(--sp-6)}
+  .field{margin-bottom:var(--sp-5)}
+  .field>label{display:block;font-size:12px;font-weight:700;color:var(--muted);margin-bottom:var(--sp-2);line-height:1.5;letter-spacing:.2px}
+  .field input{width:100%;border:1px solid var(--line);border-radius:var(--r-sm);padding:11px 12px;font-family:inherit;font-size:14px;background:var(--cream)}
+  .field input:focus{outline:2px solid var(--brass);border-color:transparent}
+  .chips{display:flex;flex-wrap:wrap;gap:8px}
+  .chip{border:1px solid var(--line);background:var(--paper);border-radius:var(--r-full);padding:8px 14px;font-family:inherit;font-size:13px;cursor:pointer;transition:.15s var(--ease);color:var(--ink-text);line-height:1.3}
+  .chip:hover{border-color:var(--brass)}
+  .chip.sel{background:var(--ink);color:var(--brass-l);border-color:var(--ink)}
+  .livescore{background:var(--ink);color:#fff;border-radius:var(--r-md);padding:var(--sp-4) var(--sp-5);margin:var(--sp-2) 0 var(--sp-2);display:flex;align-items:center;justify-content:space-between;border:1px solid var(--hairline)}
+  .livescore .ll{font-size:11px;color:rgba(255,255,255,.5);letter-spacing:.3px}
+  .livescore .lv{font-family:'JetBrains Mono';font-weight:500;font-size:30px;line-height:1;color:var(--brass-l)}
+  .livescore .lb{font-size:12px;font-weight:700;margin-top:5px}
+  .breakdown{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 var(--sp-5);padding:0}
+  .bd-label{font-size:10.5px;color:var(--muted);font-weight:700;letter-spacing:.8px;width:100%;margin-bottom:2px;text-transform:uppercase}
+  .bd-pill{font-size:11.5px;background:transparent;border:1px solid var(--line);color:var(--muted);padding:4px 10px;border-radius:var(--r-full);white-space:nowrap;line-height:1.4}
+  .submit{width:100%;background:var(--brass);color:var(--ink);border:0;border-radius:var(--r-md);padding:15px;font-family:inherit;font-weight:700;font-size:14.5px;cursor:pointer;letter-spacing:.6px;transition:background .15s var(--ease)}
+  .submit:active{transform:scale(.99)}
+  .submit:hover{background:var(--brass-l)}
+  .hint{font-size:11.5px;color:var(--muted);text-align:center;margin-top:var(--sp-3);line-height:1.6}
+
+  .note{max-width:1080px;margin:var(--sp-6) auto 0;font-size:12px;color:var(--muted);text-align:center;line-height:1.8}
+
+  /* charts */
+  .kpi{position:relative;overflow:hidden}
+  .spark-wrap{position:absolute;left:0;right:0;bottom:0;height:26px;opacity:.55;pointer-events:none}
+  .spark-wrap canvas{width:100% !important;height:26px !important}
+  .dist-card{background:var(--paper);border:1px solid var(--line);border-radius:var(--r-md);padding:var(--sp-4) var(--sp-4) var(--sp-3);margin-bottom:var(--sp-6)}
+  .dist-head{font-size:12px;font-weight:700;letter-spacing:1.2px;color:var(--ink-text);text-transform:uppercase;display:flex;justify-content:space-between;align-items:baseline;margin-bottom:var(--sp-2)}
+  .dist-head span{font-size:11px;color:var(--muted);font-weight:500;letter-spacing:0}
+  .dist-canvas{height:46px;position:relative}
+  .dist-canvas canvas{width:100% !important;height:46px !important}
+  .gauge{position:relative;width:74px;height:74px;flex-shrink:0}
+  .gauge canvas{width:74px !important;height:74px !important}
+  .gauge .lv{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:22px !important}
+
+  @media(max-width:680px){
+    .wrap{padding:var(--sp-5) var(--sp-4) 56px}
+    .kpis{grid-template-columns:repeat(2,1fr)}
+    .dash-head{align-items:flex-start}
+    .dash-head .when{text-align:left}
+    .lead{grid-template-columns:50px 1fr;gap:var(--sp-3);padding:var(--sp-3) var(--sp-4)}
+    .lead .meta{grid-column:2;text-align:left;margin-top:4px;align-self:start}
+    .dash-head h1{font-size:20px}
+  }
+  @media(max-width:420px){
+    .topbar{padding:var(--sp-3) var(--sp-4)}
+    .brand{font-size:15px}
+    .kpis{grid-template-columns:1fr 1fr;gap:var(--sp-2)}
+  }
+
+  /* ══ 登入門面 ══ */
+  #authGate{
+    position:fixed;inset:0;z-index:9999;
+    background:radial-gradient(1200px 800px at 70% -10%, #1d2637 0%, #10151f 55%, #0b0f17 100%);
+    display:flex;align-items:center;justify-content:center;padding:24px;
+    transition:opacity .6s cubic-bezier(.4,0,.2,1);
+  }
+  #authGate.out{opacity:0;pointer-events:none;}
+  .auth-card{
+    width:100%;max-width:380px;text-align:center;
+    animation:authIn .7s cubic-bezier(.2,.8,.2,1) both;
+  }
+  @keyframes authIn{from{opacity:0;transform:translateY(16px);}to{opacity:1;transform:none;}}
+  .auth-dot{width:8px;height:8px;border-radius:50%;background:#d8b56a;margin:0 auto 18px;box-shadow:0 0 16px rgba(216,181,106,.9);}
+  .auth-brand{font-family:'Noto Serif TC',serif;font-weight:900;font-size:26px;color:#f6f2ea;letter-spacing:.06em;}
+  .auth-sub{font-size:12.5px;color:rgba(246,242,234,.5);letter-spacing:.3em;margin:8px 0 34px;}
+  .auth-field{margin-bottom:14px;text-align:left;}
+  .auth-field label{display:block;font-size:11.5px;letter-spacing:.25em;color:#d8b56a;font-weight:700;margin-bottom:6px;}
+  .auth-field input{
+    width:100%;padding:13px 16px;border-radius:10px;font-size:16px;color:#f6f2ea;
+    background:rgba(255,255,255,.06);border:1px solid rgba(216,181,106,.35);
+    font-family:'Noto Sans TC',sans-serif;transition:.25s;
+  }
+  .auth-field input:focus{outline:none;border-color:#d8b56a;background:rgba(255,255,255,.1);box-shadow:0 0 0 3px rgba(216,181,106,.15);}
+  .auth-btn{
+    width:100%;margin-top:10px;padding:14px;border:0;border-radius:10px;cursor:pointer;
+    font-family:'Noto Serif TC',serif;font-weight:700;font-size:16px;letter-spacing:.2em;
+    background:linear-gradient(135deg,#d8b56a,#b6924a);color:#10151f;
+    box-shadow:0 8px 24px rgba(216,181,106,.32);transition:.25s;
+  }
+  .auth-btn:hover{transform:translateY(-1px);box-shadow:0 12px 30px rgba(216,181,106,.42);}
+  .auth-btn:active{transform:translateY(0);}
+  .auth-err{
+    margin-top:14px;font-size:13px;color:#e2a196;min-height:20px;opacity:0;transition:.3s;
+  }
+  .auth-err.show{opacity:1;}
+  .auth-card.shake{animation:authShake .4s;}
+  @keyframes authShake{0%,100%{transform:translateX(0);}25%{transform:translateX(-8px);}75%{transform:translateX(8px);}}
+  .auth-foot{margin-top:36px;font-size:11.5px;color:rgba(246,242,234,.35);letter-spacing:.15em;}
+
+</style>
+
+<style id="lib-skin">
+  /* ══ LIB 墨夜金主題 ══ */
+  :root{
+    --ink:#0c111a; --ink-2:#131a26; --ink-soft:#1c2433;
+    --green:#233046; --green-d:#0c111a; --green-l:#2c3b55;
+    --brass:#d8b56a; --brass-l:#ecd394; --brass-d:#b6924a;
+    --cream:#10151f; --paper:#1a2130; --ink-text:#e9e4d8; --muted:#96a0b0;
+    --hot:#e08a7c; --hot-bg:rgba(224,138,124,.13); --hot-ink:#f0a89b;
+    --warm:#d8b56a; --warm-bg:rgba(216,181,106,.13); --warm-ink:#ecd394;
+    --cold:#8fb6d0; --cold-bg:rgba(143,182,208,.12); --cold-ink:#aecde2;
+    --line:rgba(216,181,106,.16); --hairline:rgba(216,181,106,.35);
+    --shadow-sm:0 4px 16px rgba(0,0,0,.35);
+    --shadow-md:0 20px 50px rgba(0,0,0,.5);
+  }
+  body{
+    background:
+      radial-gradient(1100px 700px at 50% -12%, #1a2233 0%, var(--cream) 58%),
+      var(--cream) !important;
+  }
+  .kpi.accent .n{color:var(--brass-l) !important;}
+  .kpi .n{color:var(--ink-text);}
+  .topbar{box-shadow:0 1px 0 var(--hairline), 0 8px 30px rgba(0,0,0,.4);}
+  input,select,textarea{
+    background:#141b28 !important;color:var(--ink-text) !important;
+    border:1px solid rgba(216,181,106,.25) !important;
+  }
+  input:focus,select:focus,textarea:focus{
+    outline:none !important;border-color:var(--brass) !important;
+    box-shadow:0 0 0 3px rgba(216,181,106,.14) !important;
+  }
+  input::placeholder,textarea::placeholder{color:rgba(233,228,216,.35);}
+  ::-webkit-scrollbar{width:10px;height:10px;}
+  ::-webkit-scrollbar-track{background:var(--cream);}
+  ::-webkit-scrollbar-thumb{background:#2a3448;border-radius:99px;}
+  ::-webkit-scrollbar-thumb:hover{background:#38445c;}
+  body.lock{overflow:hidden;}
+
+  /* ══ 開卷封面 ══ */
+  #coverGate{
+    position:fixed;inset:0;z-index:9998;overflow-y:auto;
+    background:radial-gradient(1100px 700px at 50% -12%, #1d2637 0%, #10151f 58%, #0b0f17 100%);
+    display:flex;align-items:center;justify-content:center;padding:48px 24px;
+    transition:opacity .7s cubic-bezier(.4,0,.2,1);
+  }
+  #coverGate.out{opacity:0;pointer-events:none;}
+  .cv{width:100%;max-width:600px;text-align:center;animation:cvRise 1s cubic-bezier(.2,.8,.2,1) both;}
+  @keyframes cvRise{from{opacity:0;transform:translateY(22px);}to{opacity:1;transform:none;}}
+  .cv-label{font-size:12.5px;letter-spacing:.9em;text-indent:.9em;color:#b6924a;font-weight:700;margin-bottom:26px;}
+  .cv h1{
+    font-family:'Noto Serif TC',serif;font-weight:900;
+    font-size:clamp(34px,7vw,52px);line-height:1.5;color:#d8b56a;letter-spacing:.12em;
+    text-shadow:0 0 44px rgba(216,181,106,.22);
+  }
+  .cv-div{width:60px;height:2px;margin:28px auto 32px;background:linear-gradient(90deg,transparent,#d8b56a,transparent);}
+  .cv-intro{max-width:32em;margin:0 auto;text-align:left;font-size:16px;line-height:2;color:#e9e4d8;}
+  .cv-intro p{margin-bottom:20px;}
+  .cv-intro b{color:#d8b56a;}
+  .cv-intro .dim{color:rgba(233,228,216,.6);}
+  .cv-quote{
+    display:flex;gap:14px;align-items:flex-start;text-align:left;
+    background:#1a2130;border:1px solid rgba(216,181,106,.28);border-radius:14px;
+    padding:18px 20px;margin:30px auto 0;max-width:32em;box-shadow:0 12px 36px rgba(0,0,0,.35);
+  }
+  .cv-mark{
+    flex:0 0 auto;width:42px;height:42px;border-radius:50%;
+    background:radial-gradient(circle at 32% 28%, #f0d9a6, #b6924a);
+    display:flex;align-items:center;justify-content:center;
+    font-family:'Noto Serif TC',serif;font-weight:900;font-size:21px;color:#10151f;
+  }
+  .cv-q .who{font-size:12.5px;color:#d8b56a;font-weight:700;letter-spacing:.1em;margin-bottom:3px;}
+  .cv-q .say{font-size:14.5px;line-height:1.85;color:#e9e4d8;}
+  .cv-q .src{font-size:12px;color:rgba(233,228,216,.5);margin-top:5px;letter-spacing:.06em;}
+  .cv-open{
+    display:inline-block;margin-top:34px;padding:15px 54px;border:0;border-radius:6px;cursor:pointer;
+    font-family:'Noto Serif TC',serif;font-weight:700;font-size:16.5px;letter-spacing:.5em;text-indent:.5em;
+    color:#141a12;
+    background:linear-gradient(135deg,#ecd394 0%, #d8b56a 45%, #b6924a 100%);
+    box-shadow:0 14px 40px rgba(216,181,106,.3), inset 0 1px 0 rgba(255,255,255,.5);
+    transition:.3s;
+  }
+  .cv-open:hover{transform:translateY(-2px);box-shadow:0 20px 52px rgba(216,181,106,.4), inset 0 1px 0 rgba(255,255,255,.5);}
+  .cv-foot{margin-top:36px;font-size:11.5px;color:rgba(233,228,216,.35);letter-spacing:.2em;}
+</style>
+
+
+<style id="hook-skin">
+  /* ══ 損失過場頁 ══ */
+  #lossGate{
+    position:fixed;inset:0;z-index:9997;
+    background:radial-gradient(1100px 700px at 50% -12%, #1d2637 0%, #10151f 58%, #0b0f17 100%);
+    display:flex;align-items:center;justify-content:center;padding:32px 24px;
+    transition:opacity .7s cubic-bezier(.4,0,.2,1);
+  }
+  #lossGate.out{opacity:0;pointer-events:none;}
+  .ls{width:100%;max-width:560px;text-align:center;}
+  .ls-row{
+    font-family:'Noto Serif TC',serif;font-weight:700;
+    font-size:clamp(20px,4.4vw,30px);line-height:1.6;color:#e9e4d8;letter-spacing:.05em;
+    opacity:0;transform:translateY(14px);
+    animation:lsIn .8s cubic-bezier(.2,.8,.2,1) forwards;
+    margin-bottom:22px;
+  }
+  .ls-row b{color:#d8b56a;}
+  .ls-row.r2{animation-delay:.9s;}
+  .ls-row.r3{animation-delay:1.8s;font-size:clamp(26px,6vw,40px);}
+  .ls-row.r3 b{color:#e08a7c;text-shadow:0 0 34px rgba(224,138,124,.35);}
+  .ls-sub{
+    opacity:0;animation:lsIn .8s 2.8s cubic-bezier(.2,.8,.2,1) forwards;
+    font-size:14.5px;color:rgba(233,228,216,.55);letter-spacing:.14em;margin-top:8px;
+  }
+  .ls-go{
+    opacity:0;animation:lsIn .8s 3.4s cubic-bezier(.2,.8,.2,1) forwards;
+    display:inline-block;margin-top:38px;padding:13px 46px;border:1.5px solid #d8b56a;border-radius:6px;
+    background:transparent;color:#d8b56a;cursor:pointer;
+    font-family:'Noto Serif TC',serif;font-weight:700;font-size:15.5px;letter-spacing:.4em;text-indent:.4em;
+    transition:.3s;
+  }
+  .ls-go:hover{background:rgba(216,181,106,.1);transform:translateY(-1px);}
+  @keyframes lsIn{to{opacity:1;transform:none;}}
+
+  /* ══ 鎖定模組 ══ */
+  .locked-mods{
+    display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:12px;
+    margin:40px 0 0;
+  }
+  .lmod{
+    position:relative;background:rgba(26,33,48,.55);border:1px dashed rgba(216,181,106,.3);
+    border-radius:14px;padding:18px 20px;cursor:pointer;transition:.25s;overflow:hidden;
+  }
+  .lmod:hover{border-color:#d8b56a;background:rgba(26,33,48,.85);transform:translateY(-2px);}
+  .lmod .lm-ico{font-size:20px;margin-bottom:8px;opacity:.85;}
+  .lmod .lm-t{font-family:'Noto Serif TC',serif;font-weight:700;font-size:16px;color:#e9e4d8;letter-spacing:.04em;}
+  .lmod .lm-s{font-size:12.5px;color:#96a0b0;margin-top:4px;line-height:1.7;}
+  .lmod .lm-lock{
+    position:absolute;top:14px;right:16px;font-size:15px;color:#d8b56a;opacity:.9;
+  }
+  .lmod .lm-note{
+    max-height:0;opacity:0;transition:.35s;overflow:hidden;
+    font-size:13px;color:#ecd394;margin-top:0;letter-spacing:.04em;
+  }
+  .lmod.open .lm-note{max-height:60px;opacity:1;margin-top:10px;}
+
+  /* ══ 結尾行動卡 ══ */
+  .cta-card{
+    margin:48px 0 8px;padding:34px 30px;text-align:center;border-radius:16px;
+    background:linear-gradient(135deg,#1d2637 0%, #141b28 100%);
+    border:1.5px solid rgba(216,181,106,.35);
+    box-shadow:0 20px 50px rgba(0,0,0,.45), inset 0 1px 0 rgba(216,181,106,.15);
+  }
+  .cta-card .ct-eyebrow{font-size:12px;letter-spacing:.4em;text-indent:.4em;color:#b6924a;font-weight:700;margin-bottom:14px;}
+  .cta-card h3{
+    font-family:'Noto Serif TC',serif;font-weight:900;
+    font-size:clamp(20px,3.4vw,27px);line-height:1.65;color:#e9e4d8;letter-spacing:.04em;
+  }
+  .cta-card h3 b{color:#d8b56a;}
+  .cta-card .ct-sub{font-size:14px;color:#96a0b0;margin-top:12px;line-height:1.9;}
+  .cta-btn{
+    display:inline-block;margin-top:24px;padding:15px 50px;border:0;border-radius:6px;cursor:pointer;
+    font-family:'Noto Serif TC',serif;font-weight:700;font-size:16px;letter-spacing:.35em;text-indent:.35em;
+    color:#141a12;text-decoration:none;
+    background:linear-gradient(135deg,#ecd394 0%, #d8b56a 45%, #b6924a 100%);
+    box-shadow:0 14px 40px rgba(216,181,106,.28), inset 0 1px 0 rgba(255,255,255,.5);
+    transition:.3s;
+  }
+  .cta-btn:hover{transform:translateY(-2px);box-shadow:0 20px 52px rgba(216,181,106,.4), inset 0 1px 0 rgba(255,255,255,.5);}
+  .cta-note{font-size:12px;color:rgba(233,228,216,.4);margin-top:16px;letter-spacing:.1em;}
+</style>
+
+</head>
+\1
+
+
+<div id="lossGate">
+  <div class="ls">
+    <div class="ls-row r1">好植案，現場來人 <b>260 餘組</b>。</div>
+    <div class="ls-row r2">名單耗損，超過 <b>130 組</b>。</div>
+    <div class="ls-row r3">可挽回的成交：<b>至少 10 戶</b>。</div>
+    <div class="ls-sub">—— 如果當時，就有這套系統。</div><br>
+    <button class="ls-go" id="lsGo">看它怎麼做 ›</button>
+  </div>
+</div>
+
+<div id="coverGate">
+  <div class="cv">
+    <div class="cv-label">開　卷</div>
+    <h1>案場葵花寶典</h1>
+    <div class="cv-div"></div>
+    <div class="cv-intro">
+      <p>這不是一本教科書。教科書教你順利的案子怎麼做；這部寶典記的，是<b>卡關的案子怎麼救</b>。</p>
+      <p class="dim">接下來你會看到的，是它的第一件武器——把跑單的直覺，變成一眼能看的分數。</p>
+    </div>
+    <div class="cv-quote">
+      <div class="cv-mark">寶</div>
+      <div class="cv-q">
+        <div class="who">寶典之名的由來</div>
+        <div class="say">「這份資料，就是你的葵花寶典——未來碰到問題，翻出來，就知道怎麼解。」</div>
+        <div class="src">— 一位建設公司總經理，於結案會議上</div>
+      </div>
+    </div>
+    <button class="cv-open" id="cvOpen">翻 開 ›</button>
+    <div class="cv-foot">施向宇 ・ 系統顧問</div>
+  </div>
+</div>
+
+<div id="authGate">
+  <div class="auth-card" id="authCard">
+    <div class="auth-dot"></div>
+    <div class="auth-brand">客戶意向系統</div>
+    <div class="auth-sub">INTENT SCORING ・ DEMO</div>
+    <div class="auth-field">
+      <label>帳號 ACCOUNT</label>
+      <input type="text" id="authUser" autocomplete="off" placeholder="請輸入帳號">
+    </div>
+    <div class="auth-field">
+      <label>密碼 PASSWORD</label>
+      <input type="password" id="authPass" placeholder="請輸入密碼">
+    </div>
+    <button class="auth-btn" id="authBtn">登 入</button>
+    <div class="auth-err" id="authErr">帳號或密碼不正確</div>
+    <div class="auth-foot">施向宇 ・ 系統顧問</div>
+  </div>
+</div>
+
+
+<div class="topbar">
+  <div class="brand"><span class="dot"></span>案場葵花寶典 · 客戶意向系統</div>
+  <div class="toggle">
+    <button id="btnAgent" onclick="switchView('agent')">跑單填寫</button>
+    <button id="btnDash" class="on" onclick="switchView('dash')">主管看板</button>
+  </div>
+</div>
+
+<div class="wrap">
+
+  <!-- ============ 主管看板 ============ -->
+  <div class="view show" id="dash">
+    <div class="dash-head">
+      <div>
+        <h1>本案熱客追蹤</h1>
+        <div class="sub">系統自動從 86 組來人中，標出該跟進的重點客</div>
+      </div>
+      <div class="when">資料即時更新<br>主管：<b>施向宇</b>　最後同步 <b>今天 14:30</b></div>
+    </div>
+
+    <div class="kpis">
+      <div class="kpi accent"><div class="n" id="kpiHot">8</div><div class="l">重點熱客（需跟進）</div><div class="spark-wrap"><canvas id="sparkHot"></canvas></div></div>
+      <div class="kpi"><div class="n" id="kpiTotal">86</div><div class="l">本週來人</div><div class="spark-wrap"><canvas id="sparkTotal"></canvas></div></div>
+      <div class="kpi"><div class="n">2</div><div class="l">本週成交（報告基準日快照）</div><div class="spark-wrap"><canvas id="sparkDeal"></canvas></div></div>
+      <div class="kpi"><div class="n" style="color:var(--hot-ink)">1</div><div class="l">退戶預警</div></div>
+    </div>
+
+    <div class="dist-card">
+      <div class="dist-head">分級分布 <span class="mono" id="distSummary"></span></div>
+      <div class="dist-canvas"><canvas id="gradeChart"></canvas></div>
+    </div>
+
+    <div class="alert">
+      <span class="ico">⚠️</span>
+      <div class="txt"><b>退戶預警：</b>C-13F 呂胡玉鈴（（區間內），已簽約）出現猶豫訊號、家人有不同意見。建議今日內由 顧問端 主動穩單，避免退戶。 <b>救回一筆＝（區間內）</b></div>
+    </div>
+
+    <div class="section-label">該優先跟進 <span class="count" id="leadCount">· 依熱度排序</span></div>
+    <div class="toolbar">
+      <input type="text" id="qSearch" class="qbox" placeholder="搜尋客戶姓名或業務…">
+      <div class="ftabs" id="levelTabs">
+        <button class="ftab on" data-level="all">全部</button>
+        <button class="ftab" data-level="hot">熱客</button>
+        <button class="ftab" data-level="warm">溫客</button>
+        <button class="ftab" data-level="cold">冷客</button>
+      </div>
+      <select id="qSort" class="qsel">
+        <option value="score">依分數排序</option>
+        <option value="recent">依最新登記</option>
+      </select>
+    </div>
+    <div class="leads" id="leadList"></div>
+    <div class="empty" id="emptyState" style="display:none">沒有符合條件的客戶，試著換個搜尋字或篩選條件。</div>
+
+  <div class="locked-mods">
+    <div class="lmod" onclick="this.classList.toggle('open')">
+      <div class="lm-lock">🔒</div>
+      <div class="lm-ico">📊</div>
+      <div class="lm-t">廣告來源 × 成交等級分析</div>
+      <div class="lm-s">哪支廣告帶來 A 客、哪支全是 D 客——下一波預算照 A 客的來源下。</div>
+      <div class="lm-note">▸ 此模組依貴案的媒體組合客製，面談時展示。</div>
+    </div>
+    <div class="lmod" onclick="this.classList.toggle('open')">
+      <div class="lm-lock">🔒</div>
+      <div class="lm-ico">🏗</div>
+      <div class="lm-t">AI 賣點可視化</div>
+      <div class="lm-s">雙面採光、衛浴開窗、三面轉——現場看不到的賣點，讓客戶看得到。</div>
+      <div class="lm-note">▸ 您在結案會議上點名的題目。我有想法，面談時聊。</div>
+    </div>
+  </div>
+
+  <div class="cta-card">
+    <div class="ct-eyebrow">下 一 步</div>
+    <h3>這是好植案的版本。<br><b>你的案子，權重會長什麼樣？</b></h3>
+    <div class="ct-sub">每個案子的客群、總價帶、媒體組合都不同——權重和欄位，要用你的成交數據重新校準。</div>
+    <a class="cta-btn" href="https://line.me/ti/p/009Y8tE7Hq" target="_blank">約 30 分鐘，講給你聽</a>
+    <div class="cta-note">Nick ・ 施向宇 ｜ 系統顧問 ・ 台中</div>
+  </div>
+
+  </div>
+
+  <!-- ============ 跑單填寫端 ============ -->
+  <div class="view" id="agent">
+    <div class="phone">
+      <div class="ph-head">
+        <div class="t">登記來客 · 30 秒</div>
+        <div class="s">填完即自動分級，不用再寫日報</div>
+      </div>
+      <div class="ph-body">
+        <div class="field">
+          <label>客戶姓名 / 年齡</label>
+          <input type="text" id="fName" placeholder="例：周淑芬 66" value="周淑芬 66">
+        </div>
+        <div class="field">
+          <label>承辦業務</label>
+          <input type="text" id="fAgent" placeholder="例：業務D" value="">
+        </div>
+        <div class="field">
+          <label>購屋動機（自住換屋為主流）</label>
+          <div class="chips" data-group="motive">
+            <button class="chip sel" data-pts="25">自住</button>
+            <button class="chip" data-pts="23">換屋</button>
+            <button class="chip" data-pts="18">工作/環境</button>
+            <button class="chip" data-pts="14" data-invest="1">置產</button>
+            <button class="chip" data-pts="10" data-invest="1">投資</button>
+          </div>
+        </div>
+        <div class="field">
+          <label>客戶預算（本案總價帶 1500–2000萬）</label>
+          <div class="chips" data-group="bud">
+            <button class="chip" data-pts="25">2000萬以上</button>
+            <button class="chip" data-pts="25">1801–2000</button>
+            <button class="chip sel" data-pts="15">1501–1800</button>
+            <button class="chip" data-pts="3" data-flag="under">1301–1500↓</button>
+            <button class="chip" data-pts="3" data-flag="under">1300以下</button>
+          </div>
+        </div>
+        <div class="field">
+          <label>年收入（用來核對買得起嗎）</label>
+          <div class="chips" data-group="income">
+            <button class="chip" data-pts="0">301萬以上</button>
+            <button class="chip sel" data-pts="0">201–300</button>
+            <button class="chip" data-pts="0">151–200</button>
+            <button class="chip" data-pts="0">101–150</button>
+            <button class="chip" data-pts="0" data-flag="lowinc">100萬以下</button>
+          </div>
+        </div>
+        <div class="field">
+          <label>出價狀況（回測：出價分級 &gt; 有沒有出價）</label>
+          <div class="chips" data-group="offer">
+            <button class="chip sel" data-pts="0">還沒出價</button>
+            <button class="chip" data-pts="8">探索性低出價</button>
+            <button class="chip" data-pts="40" data-flag="floor">貼近底價在談</button>
+            <button class="chip" data-pts="55" data-flag="floor">到價／當日下訂</button>
+          </div>
+        </div>
+        <div class="field">
+          <label>回訪次數（行為是最真的訊號）</label>
+          <div class="chips" data-group="revisit">
+            <button class="chip sel" data-pts="0">初訪</button>
+            <button class="chip" data-pts="45" data-flag="rv">回訪 1 次</button>
+            <button class="chip" data-pts="55" data-flag="rv">回訪 2 次</button>
+            <button class="chip" data-pts="65" data-flag="rv">回訪 3 次↑</button>
+          </div>
+        </div>
+        <div class="field">
+          <label>決策者到場了嗎？（回測：未成交頭號死因）</label>
+          <div class="chips" data-group="dm">
+            <button class="chip sel" data-pts="20">本人/夫妻同到</button>
+            <button class="chip" data-pts="8">只來一個</button>
+            <button class="chip" data-pts="-5" data-flag="proxy">替別人看</button>
+          </div>
+        </div>
+        <div class="field">
+          <label>比較狀態</label>
+          <div class="chips" data-group="cmp">
+            <button class="chip" data-pts="20">只看我們</button>
+            <button class="chip sel" data-pts="12">在比 1–2 個</button>
+            <button class="chip" data-pts="5">比一堆＋看成屋</button>
+          </div>
+        </div>
+        <div class="field">
+          <label>特殊訊號（可複選）</label>
+          <div class="chips" data-group="signal">
+            <button class="chip" data-pts="15" data-flag="referral">老客戶／屋主介紹</button>
+            <button class="chip" data-pts="-30" data-flag="resale">心態像在買中古／成屋</button>
+          </div>
+        </div>
+        <div class="field">
+          <label>未購原因（可複選）</label>
+          <div class="chips" data-group="block">
+            <button class="chip" data-pts="-10" data-flag="b">資金不足</button>
+            <button class="chip" data-pts="-8" data-flag="b">家人意見</button>
+            <button class="chip" data-pts="-6" data-flag="b">嫌總價</button>
+            <button class="chip" data-pts="-5" data-flag="b">風水命理</button>
+            <button class="chip" data-pts="-3" data-flag="b">比較個案</button>
+          </div>
+        </div>
+
+        <div class="livescore">
+          <div><div class="ll">系統即時判讀</div><div class="lb" id="liveBadge">—</div></div>
+          <div class="gauge"><canvas id="gaugeCanvas"></canvas><div class="lv" id="liveScore">0</div></div>
+        </div>
+        <div class="breakdown" id="breakdown"></div>
+
+        <button class="submit" onclick="submitLead()">送出登記 · 同步主管看板</button>
+        <div class="hint">投資／置產客預算不足本案 → 直接鎖 D；自住客預算不足只扣分、不鎖級。<br>出價分三級計分，「心態像買中古」會取消所有出價/回訪托底並倒扣。</div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<div class="note">
+  示範資料取自好植第 39 週實際來客名單　·　v5 引擎：預算為投資／置產客的資格門檻，出價與回訪分級托底，心態旗標可覆蓋托底<br>
+  （運算規則 = 二十年業務判斷＋五個月成交回測校準，可依案場調整）
+</div>
+
+<!-- drawer -->
+<div class="drawer-bg" id="drawerBg" onclick="closeDrawer()"></div>
+<div class="drawer" id="drawer">
+  <div class="dh">
+    <button class="x" onclick="closeDrawer()">✕</button>
+    <h2 id="dName"></h2>
+    <div class="dh-sub" id="dSub"></div>
+  </div>
+  <div class="body" id="dBody"></div>
+</div>
+
+<script>
+// ---- 真實報表客戶資料 ----
+const leads=[
+  {name:"陳美惠",age:51,region:"台北市區",media:"FB",unit:"D12",agent:"業務A",
+   score:88,level:"hot",lastFollow:"當天出價",stale:false,
+   tags:["🔥當天出價→拉價成交","自住兼投資","捷運宅"],block:"",
+   detail:{出價:"當天出價 → 小幅拉價後成交 ✅",看房:"初訪當天",決策者:"獨訪(本人決策)",比較:"看過文山改大套房投資",預算:"與本案區間對得上 ✓",房型:"D12 / 18.96坪"},
+   narr:"賴小姐獨訪，外縣市北上工作，現為租屋族。2房自住需求，重視居住品質與格局細節。當天出價，小幅拉價後成交。【回測驗證:此客實際成交。資料平平(投資+獨訪+租屋)，但「當天出價」是最強訊號——系統因出價正確判A。】",
+   next:"✅ 已成交案例。回測重點:出價行為 > 任何靜態資料。系統新增「出價」欄位後,正確將她判為A。這證明評分邏輯經真實成交校準有效。"},
+  {name:"林志成",age:45,region:"永和區",media:"FB",unit:"D2 / D13",agent:"業務B",
+   score:58,level:"warm",lastFollow:"5 天前",stale:true,
+   tags:["（區間內）預算 ✓","看 3–4 月","景觀需求"],block:"心偏三重成屋",
+   detail:{看房:"3–4 個月",決策者:"與男友同到",比較:"喜歡三重一處成屋(22坪/70萬初)",預算:"約 （區間內） ✓",房型:"D2 / D13 樓"},
+   narr:"盧小姐與男友開車來訪，皆任職台北喜來登後勤。預算約 1500 萬、要景觀。已看 3–4 個月，曾看頂埔、三重，目前較喜歡三重一處成屋。現場了解後尚無法決定，帶資料回去評估。",
+   next:"⚠️ 她心已偏向三重成屋——這是搶救單。建議業務B 48 小時內約她再訪，主打『新成屋 vs 預售價差＋景觀稀缺』，把她從成屋拉回來。已 5 天沒動作，要快。"},
+
+  {name:"張建宏",age:43,region:"信義區",media:"樂居",unit:"D13",agent:"業務B",
+   score:54,level:"warm",lastFollow:"今天",stale:false,
+   tags:["台大教授","看半年","明確不要二樓"],block:"比較型會拖",
+   detail:{看房:"半年多",決策者:"本人(自住)",比較:"看過西門町、大同、板橋、新埔、三重、雙和、新店＋成屋",預算:"未明說",房型:"2房自住 13–16坪"},
+   narr:"黃先生 43 歲台大教授，租屋信義區。2房自住，要 13–16坪，明確不要二樓、偏好安靜。看房半年多，比較過大量區域，認為大同區太貴。今日帶資料回去參考。",
+   next:"比較型客戶，會一直拖。重點不是再介紹，是『製造時機壓力』——告訴他這幾戶安靜的 D13 在被誰看、剩幾戶。他懂行、自住意願明確，臨門一腳靠稀缺感。"},
+
+  {name:"高小姐",age:60,region:"中和區",media:"POP",unit:"A11 / C13",agent:"業務C",
+   score:41,level:"warm",lastFollow:"3 天前",stale:false,
+   tags:["替女兒看","月付4萬","重風水"],block:"關卡多",
+   detail:{看房:"比較評估階段",決策者:"本人(替女兒)，女兒未到",比較:"同步看中古＋豐森大境",預算:"月付約 4 萬",房型:"2房，不考慮D戶"},
+   narr:"高小姐約60，替女兒看房，自己出頭期、女兒付房貸，月付控制 4 萬。重風水(要請老師看)、廁所要開窗、要明廳、不考慮D戶。同步看中古與豐森大境。",
+   next:"決策者(女兒)還沒到場，且卡風水＋競案。先別逼單，下一步是『把女兒約到現場』——成交鑰匙在女兒身上。可備一份符合風水/明廳條件的戶別清單給她帶回。"},
+
+  {name:"劉雅文",age:null,region:"板橋區",media:"介紹",unit:"E1 / D13",agent:"業務C",
+   score:28,level:"cold",lastFollow:"未跟進",stale:true,
+   tags:["同事介紹","還在跟家人談","早期"],block:"家人意見",
+   detail:{看房:"一段時間",決策者:"本人，家人未到",比較:"雙和/新店/三重/板橋皆比較",預算:"家人協助頭期",房型:"台北外圍第一圈"},
+   narr:"郭小姐單身，由同事王先生介紹。已看一段時間，比較雙和、新店、三重、板橋，想找台北外圍第一圈。現與家人同住，未來自住，頭期家人協助。今日拿格局圖回去與家人討論。",
+   next:"早期客、決策牽涉家人。屬於『養』的名單，不必密集追。建議兩週後一次價值型接觸(同區成交捷報)，保持溫度即可，別浪費火力。"},
+
+  {name:"何先生",age:52,region:"板橋區",media:"FB",unit:"D2 / D13",agent:"業務C",
+   score:22,level:"cold",lastFollow:"未跟進",stale:true,
+   tags:["替長輩看","決策者未到","對預售無概念"],block:"家人意見",
+   detail:{看房:"剛接觸",決策者:"本人，母親未到",比較:"無",預算:"未明",房型:"2房給父親住"},
+   narr:"何先生替長輩看，想買2房給父親住。對預售無概念，覺得沒樣品屋難想像空間。今日介紹 D2、D13，提供價格帶回與母親討論，後續看母親是否願到場。",
+   next:"關鍵障礙是『母親沒到場、又對預售沒概念』。下一步唯一動作：把母親約到現場看實品/工地。母親不來，這單不會動。先寄一段預售屋說明影片建立概念。"},
+
+  {name:"周淑芬",age:66,region:"桃園區",media:"介紹",unit:"B10",agent:"業務D",
+   score:24,level:"cold",lastFollow:"未跟進",stale:true,
+   tags:["投資","預算1300↓","年收100萬↓"],block:"買不起本案",
+   detail:{看房:"初訪",決策者:"本人(投資)",比較:"比較階段",預算:"1001–1300萬（本案1500起）",年收入:"100萬以下",房型:"套房 11–15坪"},
+   narr:"李小姐 66 歲，桃園人，自由業。動機為投資，需求套房 11–15 坪。預算填 1001–1300 萬，但本案總價帶為 1500–2000 萬，且年收入 100 萬以下——預算與資金力明顯不足以承接本案。",
+   next:"⚑ 系統判定：預算低於本案最低價（（區間內））＋ 年收入不足 → 買不起本案。建議列為 D，不投入跟進火力，僅留檔。把時間留給買得起的客。"},
+
+  {name:"許小姐",age:null,region:"中和區",media:"POP",unit:"D2 / D13",agent:"業務B",
+   score:50,level:"hot",lastFollow:"已回訪 1 次",stale:false,
+   tags:["✓回訪1次","帶姪女來","行為強訊號"],block:"",
+   detail:{回訪:"已回訪 1 次（行為強訊號）",決策者:"本人＋姪女",比較:"中永和不熟",預算:"考量中",房型:"2房自住 15–20坪"},
+   narr:"許小姐帶姪女回訪。姪女目前租屋、在北市上班。2房自住、首購。【顧問端校準：此客實際已成交——會回訪就是最真的購買訊號，不該被判冷客。系統已修正：回訪1次 = A客。】",
+   next:"⭐ 回訪客＝高意願，列 A。下一步：趁熱一週內約簽，備首購低自備＋貸款試算解除『頭期』心理門檻。行為已表態，臨門一腳即可。"}
+];
+
+const fmtScore=s=>s;
+function levelText(l){return l==='hot'?'熱客':l==='warm'?'溫客':'冷客'}
+
+let filterLevel='all', filterQ='', sortBy='score', newestId=null;
+const weeklyVisitorsBase=86; // 本週實際來人基準（86組），跑單登記會即時累加
+let sessionNewCount=0;
+
+// ---- 數字滾動動畫 ----
+function animateNum(el,to,dur=350){
+  if(typeof requestAnimationFrame==='undefined'){el.textContent=to;return;}
+  const from=parseInt(el.textContent,10)||0;
+  if(from===to){el.textContent=to;return;}
+  const t0=performance.now();
+  function step(t){
+    const p=Math.min(1,(t-t0)/dur), e=1-Math.pow(1-p,3);
+    el.textContent=Math.round(from+(to-from)*e);
+    if(p<1)requestAnimationFrame(step);
+  }
+  requestAnimationFrame(step);
+}
+
+// ---- Chart.js 圖層（CDN 失敗時自動降級，不影響功能）----
+const hasChart=typeof Chart!=='undefined';
+let gradeChart=null, gaugeChart=null;
+const css=v=>getComputedStyle(document.documentElement).getPropertyValue(v).trim();
+
+function gradeOf(s){return s>=45?'A':s>=30?'B':s>=18?'C':'D'}
+function gradeCounts(){
+  const c={A:0,B:0,C:0,D:0};
+  leads.forEach(d=>c[gradeOf(d.score)]++);
+  return c;
+}
+
+function initCharts(){
+  if(!hasChart)return;
+  Chart.defaults.font.family="'Noto Sans TC',sans-serif";
+  const spark=(id,data,color)=>{
+    const el=document.getElementById(id); if(!el)return;
+    new Chart(el,{type:'line',data:{labels:data.map((_,i)=>i),datasets:[{data,borderColor:color,borderWidth:1.5,pointRadius:0,tension:.45,fill:{target:'origin',above:color+'22'}}]},
+      options:{responsive:true,maintainAspectRatio:false,animation:{duration:900},plugins:{legend:{display:false},tooltip:{enabled:false}},scales:{x:{display:false},y:{display:false}}}});
+  };
+  spark('sparkHot',[3,5,4,6,5,7,8],css('--brass'));
+  spark('sparkTotal',[52,61,58,70,66,79,86],css('--green-l'));
+  spark('sparkDeal',[0,1,1,1,2,2,2],css('--cold'));
+
+  const gc=document.getElementById('gradeChart');
+  if(gc){
+    const cnt=gradeCounts();
+    gradeChart=new Chart(gc,{type:'bar',
+      data:{labels:['本週'],datasets:[
+        {label:'A',data:[cnt.A],backgroundColor:css('--hot'),barThickness:18,borderRadius:3},
+        {label:'B',data:[cnt.B],backgroundColor:css('--warm'),barThickness:18,borderRadius:3},
+        {label:'C',data:[cnt.C],backgroundColor:css('--cold'),barThickness:18,borderRadius:3},
+        {label:'D',data:[cnt.D],backgroundColor:'#c3c9d4',barThickness:18,borderRadius:3}
+      ]},
+      options:{indexAxis:'y',responsive:true,maintainAspectRatio:false,
+        plugins:{legend:{position:'bottom',labels:{boxWidth:9,boxHeight:9,font:{size:10},color:css('--muted'),padding:12}},tooltip:{callbacks:{label:c=>` ${c.dataset.label} 級：${c.raw} 位`}}},
+        scales:{x:{stacked:true,display:false},y:{stacked:true,display:false}}}});
+  }
+
+  const gg=document.getElementById('gaugeCanvas');
+  if(gg){
+    gaugeChart=new Chart(gg,{type:'doughnut',
+      data:{datasets:[{data:[0,99],backgroundColor:[css('--brass-l'),'rgba(255,255,255,.1)'],borderWidth:0}]},
+      options:{cutout:'80%',responsive:true,maintainAspectRatio:false,animation:{duration:400},plugins:{legend:{display:false},tooltip:{enabled:false}},events:[]}});
+  }
+}
+
+function updateGradeChart(){
+  if(!gradeChart)return;
+  const cnt=gradeCounts();
+  ['A','B','C','D'].forEach((g,i)=>gradeChart.data.datasets[i].data=[cnt[g]]);
+  gradeChart.update();
+  const ds=document.getElementById('distSummary');
+  if(ds)ds.textContent=`A ${cnt.A} · B ${cnt.B} · C ${cnt.C} · D ${cnt.D}`;
+}
+
+function updateGauge(score,color){
+  if(!gaugeChart)return;
+  gaugeChart.data.datasets[0].data=[score,Math.max(0,99-score)];
+  gaugeChart.data.datasets[0].backgroundColor=[color,'rgba(255,255,255,.1)'];
+  gaugeChart.update();
+}
+
+function updateKpis(){
+  animateNum(document.getElementById('kpiHot'),leads.filter(d=>d.level==='hot').length);
+  animateNum(document.getElementById('kpiTotal'),weeklyVisitorsBase+sessionNewCount);
+  updateGradeChart();
+}
+
+function renderLeads(){
+  const el=document.getElementById('leadList');
+  const empty=document.getElementById('emptyState');
+  let list=leads.map((d,i)=>({...d,_idx:i}));
+  if(filterLevel!=='all') list=list.filter(d=>d.level===filterLevel);
+  if(filterQ){
+    const q=filterQ.trim().toLowerCase();
+    list=list.filter(d=>(d.name+d.agent).toLowerCase().includes(q));
+  }
+  if(sortBy==='recent'){ list=list.slice().reverse(); }
+  else{ list=list.slice().sort((a,b)=>b.score-a.score); }
+  document.getElementById('leadCount').textContent=`· 共 ${list.length} 筆`;
+  if(list.length===0){ el.innerHTML=''; empty.style.display='block'; return; }
+  empty.style.display='none';
+  el.innerHTML=list.map(d=>`
+    <div class="lead ${d.level} ${d._idx===newestId?'flash':''}" onclick="openDrawer(${d._idx})">
+      <div class="score">
+        <div class="v">${d.score}</div>
+        <div class="b">${levelText(d.level)}</div>
+      </div>
+      <div class="who">
+        <div class="name">${d.name}<span>${d.age?d.age+'歲':''} · ${d.region}</span></div>
+        <div class="tags">
+          ${d._idx===newestId?`<span class="tag new">✓ 剛送出</span>`:''}
+          ${d.tags.map(t=>`<span class="tag">${t}</span>`).join('')}
+          ${d.block?`<span class="tag block">⚑ ${d.block}</span>`:''}
+        </div>
+      
+</div>
+      <div class="meta">
+        <div class="agent">${d.agent||'—'}</div>
+        <div>來源 ${d.media}</div>
+        <div class="${d.stale?'stale':'ok'}">${d.stale?'⏱ '+d.lastFollow:'✓ '+d.lastFollow}</div>
+      </div>
+    </div>`).join('');
+  updateKpis();
+}
+
+document.getElementById('qSearch').addEventListener('input',e=>{filterQ=e.target.value;renderLeads();});
+document.getElementById('qSort').addEventListener('change',e=>{sortBy=e.target.value;renderLeads();});
+document.getElementById('levelTabs').querySelectorAll('.ftab').forEach(btn=>{
+  btn.addEventListener('click',()=>{
+    document.querySelectorAll('.ftab').forEach(x=>x.classList.remove('on'));
+    btn.classList.add('on');
+    filterLevel=btn.dataset.level;
+    renderLeads();
+  });
+});
+
+function openDrawer(idx){
+  const d=leads[idx];
+  document.getElementById('dName').textContent=d.name+(d.age?'　'+d.age+'歲':'');
+  document.getElementById('dSub').textContent=`${d.region} · 來源 ${d.media} · 負責 ${d.agent}`;
+  const rows=Object.entries(d.detail).map(([k,v])=>`<div class="drow"><span class="k">${k}</span><span class="vv">${v}</span></div>`).join('');
+  document.getElementById('dBody').innerHTML=`
+    ${rows}
+    <div class="narr"><div class="nl">現場記錄</div>${d.narr}</div>
+    <div class="nextstep"><div class="nl">系統建議下一步</div><p>${d.next}</p></div>`;
+  document.getElementById('drawer').classList.add('show');
+  document.getElementById('drawerBg').classList.add('show');
+}
+function closeDrawer(){
+  document.getElementById('drawer').classList.remove('show');
+  document.getElementById('drawerBg').classList.remove('show');
+}
+
+function switchView(v){
+  document.getElementById('dash').classList.toggle('show',v==='dash');
+  document.getElementById('agent').classList.toggle('show',v==='agent');
+  document.getElementById('btnDash').classList.toggle('on',v==='dash');
+  document.getElementById('btnAgent').classList.toggle('on',v==='agent');
+}
+
+// ---- 跑單端即時計分（v5：預算資格門檻＋出價分級托底＋心態旗標覆蓋）----
+function scoreForm(){
+  let total=0, parts=[];
+  const get=g=>document.querySelector(`.chips[data-group="${g}"] .chip.sel`);
+  const motive=get('motive'), bud=get('bud'), inc=get('income'), dm=get('dm'), cmp=get('cmp'), rev=get('revisit'), offer=get('offer');
+  if(motive){total+=+motive.dataset.pts; parts.push(`動機 +${motive.dataset.pts}`);}
+  if(bud){total+=+bud.dataset.pts; parts.push(`預算 +${bud.dataset.pts}`);}
+  if(dm){total+=+dm.dataset.pts; parts.push(`決策者 ${dm.dataset.pts>=0?'+':''}${dm.dataset.pts}`);}
+  if(cmp){total+=+cmp.dataset.pts; parts.push(`比較 +${cmp.dataset.pts}`);}
+
+  const resaleActive=[...document.querySelectorAll('.chips[data-group="signal"] .chip.sel')].some(c=>c.dataset.flag==='resale');
+  const referralActive=[...document.querySelectorAll('.chips[data-group="signal"] .chip.sel')].some(c=>c.dataset.flag==='referral');
+
+  // 預算資格門檻：投資／置產客不足預算 → 直接鎖 D；自住客只扣分不鎖級
+  const under = bud && bud.dataset.flag==='under';
+  const lowinc = inc && inc.dataset.flag==='lowinc';
+  const isInvestor = motive && motive.dataset.invest==='1';
+  let hardLocked=false;
+  if(under && isInvestor){
+    hardLocked=true;
+    parts.push(`<b style="color:var(--hot)">⚑ 投資／置產客預算不足本案 → 鎖定 D</b>`);
+  }else if(under && lowinc){
+    total-=18; parts.push(`<b style="color:var(--hot)">預算不足＋收入不足 −18</b>`);
+  }else if(under){
+    total-=8; parts.push(`<span style="color:var(--hot)">自住客預算低於本案 −8（僅扣分）</span>`);
+  }
+
+  document.querySelectorAll('.chips[data-group="block"] .chip.sel').forEach(c=>{
+    total+=+c.dataset.pts; parts.push(`${c.textContent} ${c.dataset.pts}`);
+  });
+
+  // 回訪托底
+  const revisited = rev && rev.dataset.flag==='rv';
+  if(revisited && !resaleActive){ total=Math.max(total, +rev.dataset.pts); parts.push(`<b style="color:var(--green-l)">↑${rev.textContent}：托底至 ${rev.dataset.pts}</b>`); }
+
+  // 出價分級：探索性低出價只加分不托底；貼近底價/到價才托底
+  if(offer){
+    total+=+offer.dataset.pts;
+    if(offer.dataset.flag==='floor' && !resaleActive){
+      total=Math.max(total, +offer.dataset.pts);
+      parts.push(`<b style="color:var(--hot)">🔥${offer.textContent}：托底至 ${offer.dataset.pts}</b>`);
+    }else if(+offer.dataset.pts!==0){
+      parts.push(`出價（${offer.textContent}）+${offer.dataset.pts}`);
+    }
+  }
+
+  if(referralActive){ total+=15; parts.push(`<b style="color:var(--green-l)">介紹加分 +15</b>`); }
+  if(resaleActive){ total-=30; parts.push(`<b style="color:var(--hot)">⚑ 心態像買中古：取消所有托底並 −30</b>`); }
+
+  if(hardLocked) total=Math.min(total, 14);
+  total=Math.max(0,Math.min(99,total));
+
+  let level, badgeText;
+  if(total>=45){level='hot';badgeText='A 級 · 立即逼單'}
+  else if(total>=30){level='warm';badgeText='B 級 · 積極培養'}
+  else if(total>=18){level='cold';badgeText='C 級 · 定期保溫'}
+  else{level='cold';badgeText='D 級 · 買不起/觀察'}
+
+  return {total,parts,level,badgeText,hardLocked};
+}
+
+function recalc(){
+  const r=scoreForm();
+  const sc=document.getElementById('liveScore'), bd=document.getElementById('liveBadge');
+  const colMap={hot:'#e08a7c',warm:'#d8b56a',cold:'#8fb6d0'};
+  const col = r.total<18? '#8a93a2' : colMap[r.level];
+  animateNum(sc,r.total,300);
+  sc.style.color = col;
+  updateGauge(r.total,col);
+  bd.textContent=r.badgeText;
+  document.getElementById('breakdown').innerHTML='<div class="bd-label">分數來源</div>'+r.parts.map(p=>`<span class="bd-pill">${p}</span>`).join('');
+}
+document.querySelectorAll('.chips').forEach(g=>{
+  g.querySelectorAll('.chip').forEach(c=>{
+    c.addEventListener('click',()=>{
+      const single = g.dataset.group!=='block' && g.dataset.group!=='signal';
+      if(single){g.querySelectorAll('.chip').forEach(x=>x.classList.remove('sel'));c.classList.add('sel');}
+      else{c.classList.toggle('sel');}
+      recalc();
+    });
+  });
+});
+function submitLead(){
+  const r=scoreForm();
+  const nameRaw=(document.getElementById('fName').value||'新客戶').trim();
+  const agentRaw=(document.getElementById('fAgent').value||'').trim();
+  const m=nameRaw.match(/^(.*?)\s*(\d{1,3})?$/);
+  const name=(m&&m[1])?m[1]:nameRaw;
+  const age=m&&m[2]?+m[2]:null;
+
+  const get=g=>document.querySelector(`.chips[data-group="${g}"] .chip.sel`);
+  const motive=get('motive'), bud=get('bud'), dm=get('dm'), cmp=get('cmp'), rev=get('revisit'), offer=get('offer');
+  const tags=[];
+  if(offer && +offer.dataset.pts>0) tags.push(`出價：${offer.textContent}`);
+  if(rev && rev.dataset.flag==='rv') tags.push(rev.textContent);
+  if(motive) tags.push(motive.textContent);
+  const blockChips=[...document.querySelectorAll('.chips[data-group="block"] .chip.sel')].map(c=>c.textContent);
+
+  const newLead={
+    name, age, region:'—', media: agentRaw?'業務登記':'跑單登記', unit:'—', agent: agentRaw||'—',
+    score:r.total, level:r.level, lastFollow:'剛剛登記', stale:false,
+    tags: tags.slice(0,3),
+    block: r.hardLocked ? '預算不足本案' : (blockChips[0]||''),
+    detail:{
+      動機: motive?motive.textContent:'—',
+      預算: bud?bud.textContent:'—',
+      出價狀況: offer?offer.textContent:'—',
+      回訪: rev?rev.textContent:'初訪',
+      決策者: dm?dm.textContent:'—',
+      比較狀態: cmp?cmp.textContent:'—'
+    },
+    narr:'此筆由跑單端即時登記送出，內容為現場填寫的原始選項，尚未補現場記錄。',
+    next: r.level==='hot' ? '⭐ 系統判定 A 級，建議立即安排逼單動作。' :
+          r.level==='warm' ? '🟠 系統判定 B 級，建議積極培養、安排下一次接觸。' :
+          r.hardLocked ? '⚑ 預算不足本案且為投資／置產客，建議列 D、不投入火力。' :
+          '系統判定 C/D 級，建議定期保溫即可。'
+  };
+  leads.push(newLead);
+  newestId=leads.length-1;
+  sessionNewCount++;
+  filterLevel='all';
+  document.querySelectorAll('.ftab').forEach(x=>x.classList.remove('on'));
+  document.querySelector('.ftab[data-level="all"]').classList.add('on');
+  filterQ=''; document.getElementById('qSearch').value='';
+  sortBy='recent'; document.getElementById('qSort').value='recent';
+  renderLeads();
+
+  const btn=document.querySelector('.submit');
+  btn.textContent='✓ 已送出 · 主管端已更新';
+  btn.style.background='var(--green-l)';
+  setTimeout(()=>{btn.textContent='送出登記 · 同步主管看板';btn.style.background='';},1800);
+  switchView('dash');
+  setTimeout(()=>openDrawer(newestId),300);
+}
+
+initCharts();
+renderLeads();
+recalc();
+</script>
+<!-- 本頁所有客戶姓名、金額、地址均為匿名化處理之示意資料 -->
+<script>
+(function(){
+  // ★ 帳密設定：帳號直接改下行；密碼以 SHA-256 雜湊儲存。
+  //   換密碼：Console 執行
+  //   crypto.subtle.digest('SHA-256', new TextEncoder().encode('新密碼')).then(b=>console.log([...new Uint8Array(b)].map(x=>x.toString(16).padStart(2,'0')).join('')))
+  const USER = 'Baohe';
+  const PASS_HASH = '3b29bbd4908a8c52f5a2cfd69c6ad4382450d7e46a68f6cefa93062c133e2800';
+  const PASS_FB = 'ODY4OA=='; // 無 crypto 環境的後備（base64）
+  const gate = document.getElementById('authGate');
+  const card = document.getElementById('authCard');
+  const err = document.getElementById('authErr');
+
+  try{ document.body.classList.add('lock'); }catch(e){}
+  // 每次載入皆須登入（不做持久化）
+
+  function sha256(s){
+    if(window.crypto && crypto.subtle){
+      return crypto.subtle.digest('SHA-256', new TextEncoder().encode(s))
+        .then(b=>[...new Uint8Array(b)].map(x=>x.toString(16).padStart(2,'0')).join(''));
+    }
+    return Promise.resolve(null); // 交給後備比對
+  }
+  function pass(){
+    gate.classList.add('out');
+    setTimeout(()=>gate.remove(), 650);
+  }
+  function fail(){
+    err.classList.add('show');
+    card.classList.add('shake');
+    setTimeout(()=>card.classList.remove('shake'), 450);
+  }
+  function tryLogin(){
+    var u = document.getElementById('authUser').value.trim();
+    var p = document.getElementById('authPass').value;
+    if(u!==USER){ fail(); return; }
+    sha256(p).then(function(h){
+      if(h ? (h===PASS_HASH) : (btoa(p)===PASS_FB)) pass(); else fail();
+    }).catch(function(){ if(btoa(p)===PASS_FB) pass(); else fail(); });
+  }
+  document.getElementById('authBtn').addEventListener('click', tryLogin);
+  gate.addEventListener('keydown', function(e){ if(e.key==='Enter') tryLogin(); });
+  setTimeout(function(){ try{document.getElementById('authUser').focus();}catch(e){} }, 400);
+})();
+</script>
+
+
+<script>
+(function(){
+  var cg = document.getElementById('coverGate');
+  var lg = document.getElementById('lossGate');
+  document.getElementById('cvOpen').addEventListener('click', function(){
+    cg.classList.add('out');
+    setTimeout(function(){ cg.remove(); }, 750);
+  });
+  document.getElementById('lsGo').addEventListener('click', function(){
+    lg.classList.add('out');
+    document.body.classList.remove('lock');
+    setTimeout(function(){ lg.remove(); try{window.dispatchEvent(new Event('resize'));}catch(e){} }, 750);
+  });
+})();
+</script>
+
+</body>
+</html>
